@@ -7,8 +7,8 @@ let level = 1;
 let totalLevels = 10;
 let starsPerLevel = 10;
 
-let totalDestroyed = 0;   // ⭐ acumulativo
-let totalMissed = 0;      // ❌ acumulativo
+let totalDestroyed = 0;   
+let totalMissed = 0;      
 
 let animationId;
 let isPaused = false;
@@ -25,6 +25,16 @@ const destroyedText = document.getElementById("eliminadas");
 const missedText = document.getElementById("escapadas");
 
 let audioContext;
+
+// 🖱 NUEVO → variables del mouse
+let mouseX = 0;
+let mouseY = 0;
+
+canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+});
 
 function playPopSound(){
     if(!audioContext){
@@ -59,6 +69,8 @@ class Star{
 
         this.speedY = speed + Math.random()*0.5;
         this.speedX = (Math.random() - 0.5) * 1.5;
+
+        this.hover = false; // NUEVO
     }
 
     draw(){
@@ -69,8 +81,14 @@ class Star{
             this.x, this.y, this.radius
         );
 
-        gradient.addColorStop(0, "#ffff99");
-        gradient.addColorStop(1, "#ffcc00");
+        // 🎨 Cambio de color al pasar el mouse
+        if(this.hover){
+            gradient.addColorStop(0, "#ffffff");
+            gradient.addColorStop(1, "#ff4081");
+        } else {
+            gradient.addColorStop(0, "#ffff99");
+            gradient.addColorStop(1, "#ffcc00");
+        }
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -98,6 +116,13 @@ class Star{
         if(this.x < this.radius || this.x > canvas.width - this.radius){
             this.speedX *= -1;
         }
+
+        // 🖱 Detectar hover
+        let dx = mouseX - this.x;
+        let dy = mouseY - this.y;
+        let distance = Math.sqrt(dx*dx + dy*dy);
+
+        this.hover = distance <= this.radius;
     }
 }
 
@@ -158,7 +183,7 @@ function resolveCollisions(){
     }
 }
 
-// ✅ Barra basada en niveles (ahora llega a 100%)
+// ✅ Barra basada en niveles
 function updateProgress(){
     let percent = (level / totalLevels) * 100;
 
@@ -166,7 +191,6 @@ function updateProgress(){
     progressBar.innerText = level + " / " + totalLevels;
 }
 
-// Crear estrellas
 function createStars(){
     stars = [];
     let speed = 0.7 + (level * 0.2);
@@ -186,7 +210,7 @@ function checkLevelComplete(){
             updateProgress();
             createStars();
         }else{
-            updateProgress(); // queda en 10/10 y 100%
+            updateProgress();
         }
     }
 }
@@ -205,7 +229,6 @@ function animate(){
         }
     });
 
-    // 🔥 Evita que se encimen
     resolveCollisions();
 
     explosions.forEach((exp,index)=>{
@@ -296,6 +319,7 @@ restartBtn.addEventListener("click",()=>{
 });
 
 animate();
+
 
 
 
