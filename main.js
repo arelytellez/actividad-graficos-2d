@@ -6,8 +6,6 @@ let explosions = [];
 let level = 1;
 let totalLevels = 10;
 let starsPerLevel = 10;
-let totalStars = totalLevels * starsPerLevel;
-let destroyedStars = 0;
 
 let animationId;
 let isPaused = false;
@@ -15,13 +13,11 @@ let gameStarted = false;
 
 const progressBar = document.getElementById("progressBar");
 const levelText = document.getElementById("level");
-const destroyedText = document.getElementById("destroyedCount");
 
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
 const restartBtn = document.getElementById("restartBtn");
 
-// 🔊 AUDIO CONTEXT (soluciona bloqueo navegador)
 let audioContext;
 
 function playPopSound(){
@@ -51,14 +47,16 @@ function playPopSound(){
 let mouseX = 0;
 let mouseY = 0;
 
-// ⭐ CLASE STAR
+// ⭐ STAR
 class Star{
     constructor(speed){
         this.radius = 18;
-        this.x = Math.random() * (canvas.width - this.radius*2);
-        this.y = canvas.height + Math.random()*200;
-        this.speedY = speed;
-        this.speedX = (Math.random() - 0.5) * 2;
+        this.x = 0;
+        this.y = canvas.height + Math.random()*150;
+
+        this.speedY = speed + Math.random()*0.5;
+        this.speedX = (Math.random() - 0.5) * 1.5;
+
         this.hover = false;
     }
 
@@ -70,13 +68,8 @@ class Star{
             this.x, this.y, this.radius
         );
 
-        if(this.hover){
-            gradient.addColorStop(0, "#ffffff");
-            gradient.addColorStop(1, "#ff4081");
-        }else{
-            gradient.addColorStop(0, "#ffff99");
-            gradient.addColorStop(1, "#ffcc00");
-        }
+        gradient.addColorStop(0, "#ffff99");
+        gradient.addColorStop(1, "#ffcc00");
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -95,9 +88,6 @@ class Star{
         ctx.closePath();
         ctx.fill();
 
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = "white";
-
         ctx.restore();
     }
 
@@ -108,10 +98,6 @@ class Star{
         if(this.x < this.radius || this.x > canvas.width - this.radius){
             this.speedX *= -1;
         }
-
-        let dx = mouseX - this.x;
-        let dy = mouseY - this.y;
-        this.hover = Math.sqrt(dx*dx + dy*dy) < this.radius;
     }
 }
 
@@ -140,61 +126,23 @@ class Explosion{
     }
 }
 
+// ✅ Barra basada en niveles
+function updateProgress(){
+    let percent = ((level - 1) / totalLevels) * 100;
+    progressBar.style.width = percent + "%";
+    progressBar.innerText = Math.floor(percent) + "%";
+}
+
 // Crear estrellas
 function createStars(){
     stars = [];
-    let speed = 0.5 + (level * 0.5);
+    let speed = 0.7 + (level * 0.2);
 
     for(let i=0;i<starsPerLevel;i++){
-        stars.push(new Star(speed));
+        let newStar = new Star(speed);
+        newStar.x = Math.random() * (canvas.width - newStar.radius*2) + newStar.radius;
+        stars.push(newStar);
     }
-}
-
-// Mostrar nivel dentro del canvas
-function drawLevelText(){
-    ctx.save();
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.font = "bold 40px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Nivel " + level, canvas.width/2, 60);
-    ctx.restore();
-}
-
-// Mouse
-canvas.addEventListener("mousemove",(e)=>{
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-});
-
-// Click
-canvas.addEventListener("click",()=>{
-    if(!gameStarted || isPaused) return;
-
-    for(let i=stars.length-1;i>=0;i--){
-        let star = stars[i];
-        let dx = mouseX - star.x;
-        let dy = mouseY - star.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-
-        if(dist < star.radius){
-            playPopSound(); // 🔊 sonido garantizado
-
-            explosions.push(new Explosion(star.x,star.y));
-            stars.splice(i,1);
-            destroyedStars++;
-
-            destroyedText.innerText = destroyedStars;
-            updateProgress();
-            break;
-        }
-    }
-});
-
-function updateProgress(){
-    let percent = (destroyedStars / totalStars) * 100;
-    progressBar.style.width = percent + "%";
-    progressBar.innerText = Math.floor(percent) + "%";
 }
 
 function checkLevelComplete(){
@@ -202,9 +150,11 @@ function checkLevelComplete(){
         if(level < totalLevels){
             level++;
             levelText.innerText = level;
+            updateProgress();
             createStars();
         }else{
-            alert("🎉 ¡Completaste los 10 niveles!");
+            // 🔥 Ya no mostramos mensaje
+            updateProgress();
         }
     }
 }
@@ -230,23 +180,43 @@ function animate(){
     });
 
     if(gameStarted){
-        drawLevelText();
         checkLevelComplete();
     }
 
     animationId = requestAnimationFrame(animate);
 }
 
-// ▶ BOTÓN JUGAR
+canvas.addEventListener("click",(e)=>{
+    if(!gameStarted || isPaused) return;
+
+    const rect = canvas.getBoundingClientRect();
+    let clickX = e.clientX - rect.left;
+    let clickY = e.clientY - rect.top;
+
+    for(let i=stars.length-1;i>=0;i--){
+        let star = stars[i];
+        let dx = clickX - star.x;
+        let dy = clickY - star.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+
+        if(dist < star.radius){
+            playPopSound();
+            explosions.push(new Explosion(star.x,star.y));
+            stars.splice(i,1);
+            break;
+        }
+    }
+});
+
 startBtn.addEventListener("click",()=>{
     if(!gameStarted){
         gameStarted = true;
         createStars();
+        updateProgress();
         startBtn.disabled = true;
     }
 });
 
-// ⏸ PAUSAR
 pauseBtn.addEventListener("click",()=>{
     if(!gameStarted) return;
 
@@ -261,17 +231,14 @@ pauseBtn.addEventListener("click",()=>{
     }
 });
 
-// 🔄 REINICIAR
 restartBtn.addEventListener("click",()=>{
     cancelAnimationFrame(animationId);
 
     level = 1;
-    destroyedStars = 0;
     stars = [];
     explosions = [];
 
     levelText.innerText = level;
-    destroyedText.innerText = destroyedStars;
     updateProgress();
 
     gameStarted = false;
@@ -283,8 +250,10 @@ restartBtn.addEventListener("click",()=>{
     animate();
 });
 
-// Inicia loop pero sin juego activo
 animate();
+
+
+
 
 
 
